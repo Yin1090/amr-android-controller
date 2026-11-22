@@ -1,0 +1,6 @@
+-keep class com.yin1090.amrcontroller.model.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keepattributes SourceFile,LineNumberTable
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}

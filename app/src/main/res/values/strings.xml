@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AMR Controller</string>
+    <string name="connection_title">AMR TACTICAL LINK</string>
+    <string name="connection_subtitle">Differential-Drive Mobile Telemetry &amp; Control</string>
+    <string name="host_label">Robot Host / IP</string>
+    <string name="host_hint">127.0.0.1 or amr.local</string>
+    <string name="api_port_label">API Port</string>
+    <string name="cam_port_label">Camera Port</string>
+    <string name="action_connect">CONNECT</string>
+    <string name="action_offline_demo">OFFLINE DEMO</string>
+    <string name="preflight_title">PREFLIGHT DIAGNOSTICS</string>
+    <string name="cockpit_title">AMR COCKPIT</string>
+</resources>
