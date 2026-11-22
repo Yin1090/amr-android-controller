@@ -199,3 +199,52 @@ def test_readme_is_bilingual_english_and_vietnamese() -> None:
         "Kiểm thử tự động",
     ]:
         assert required_vi in readme, f"Missing Vietnamese README section: {required_vi}"
+
+
+def test_mock_server_arm_stop_fsm_parity_and_telemetry_latch() -> None:
+    with MockAmrServer() as srv:
+        drv = ParityDriver(srv.base_url)
+
+        # 1. ARM when disarmed -> 200 SENT, ARM_CONFIRMED, armed=True, latched=False
+        code_arm1, res_arm1 = drv.send_cmd("ARM")
+        assert code_arm1 == 200
+        assert res_arm1["status"] == "SENT"
+        assert res_arm1["reason"] == "ARM_CONFIRMED"
+        assert res_arm1["armed"] is True
+        assert res_arm1["latched"] is False
+
+        # 2. Duplicate ARM when already armed -> 422 FAILED, PREFLIGHT_NOT_READY
+        drv.epoch += 1
+        code_dup, res_dup = drv.send_cmd("ARM")
+        assert code_dup == 422
+        assert res_dup["status"] == "FAILED"
+        assert res_dup["reason"] == "PREFLIGHT_NOT_READY"
+        assert res_dup["armed"] is True
+
+        # 3. STOP -> 200 SENT, STOP_CONFIRMED, armed=False, latched=True in response & telemetry
+        drv.epoch += 1
+        code_stop, res_stop = drv.send_cmd("STOP")
+        assert code_stop == 200
+        assert res_stop["status"] == "SENT"
+        assert res_stop["reason"] == "STOP_CONFIRMED"
+        assert res_stop["armed"] is False
+        assert res_stop["latched"] is True
+
+        code_tel, tel_after_stop = drv.poll_telemetry(1000)
+        assert code_tel == 200 and tel_after_stop is not None
+        assert tel_after_stop["control"]["armed"] is False
+        assert tel_after_stop["control"]["latched"] is True
+
+        # 4. Subsequent ARM clears latch -> 200 SENT, ARM_CONFIRMED, armed=True, latched=False
+        drv.epoch += 1
+        code_arm2, res_arm2 = drv.send_cmd("ARM")
+        assert code_arm2 == 200
+        assert res_arm2["status"] == "SENT"
+        assert res_arm2["reason"] == "ARM_CONFIRMED"
+        assert res_arm2["armed"] is True
+        assert res_arm2["latched"] is False
+
+        _, tel_after_arm = drv.poll_telemetry(1200)
+        assert tel_after_arm is not None
+        assert tel_after_arm["control"]["armed"] is True
+        assert tel_after_arm["control"]["latched"] is False

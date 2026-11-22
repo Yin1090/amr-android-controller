@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 class MockAmrState:
     lock: threading.Lock = field(default_factory=threading.Lock)
     armed: bool = False
+    latched: bool = False
     fault: str | None = None
     lidar_connected: bool = True
     lidar_age_s: float = 0.05
@@ -26,6 +27,8 @@ class MockAmrState:
     pid_gains: dict[str, float] = field(default_factory=lambda: {"kp": 0.5, "ki": 1.5, "kd": 0.01})
     auto_speed: int = 40
     auto_turn: int = 40
+    cmd_v: float = 0.0
+    cmd_w: float = 0.0
     l_rpm: float = 0.0
     r_rpm: float = 0.0
     zones: dict[str, float] = field(
@@ -81,7 +84,11 @@ def _make_handler(state: MockAmrState) -> type[BaseHTTPRequestHandler]:
                             "l_rpm": state.l_rpm,
                             "r_rpm": state.r_rpm,
                         },
-                        "control": {"armed": state.armed, "fault": state.fault},
+                        "control": {
+                            "armed": state.armed,
+                            "fault": state.fault,
+                            "latched": bool(state.latched),
+                        },
                         "lidar": {"connected": state.lidar_connected, "age_s": state.lidar_age_s},
                         "ranges": [round(min_cm / 100.0, 3)] * 360,
                         "map_info": {"robot_pose": [0.0, 0.0, 0.0]},
@@ -130,10 +137,31 @@ def _make_handler(state: MockAmrState) -> type[BaseHTTPRequestHandler]:
                             state.cmd_log.append({"val": val, "epoch": epoch, "seq": seq, "ts": time.monotonic()})
                             self._send_json(422, {"status": "REJECTED", "reason": "FAULT_ACTIVE", "blockers": ["FAULT"]})
                             return
+                        if state.armed:
+                            state.cmd_log.append({"val": val, "epoch": epoch, "seq": seq, "ts": time.monotonic()})
+                            self._send_json(
+                                422,
+                                {
+                                    "status": "FAILED",
+                                    "reason": "PREFLIGHT_NOT_READY",
+                                    "armed": True,
+                                    "latched": bool(state.latched),
+                                },
+                            )
+                            return
                         state.latest_epoch = max(state.latest_epoch, epoch_num)
                         state.armed = True
+                        state.latched = False
                         state.cmd_log.append({"val": val, "epoch": epoch, "seq": seq, "ts": time.monotonic()})
-                        self._send_json(200, {"status": "SENT"})
+                        self._send_json(
+                            200,
+                            {
+                                "status": "SENT",
+                                "reason": "ARM_CONFIRMED",
+                                "armed": True,
+                                "latched": False,
+                            },
+                        )
                         return
                     if val == "CLEAR_FAULT":
                         state.latest_epoch = max(state.latest_epoch, epoch_num)
@@ -141,13 +169,41 @@ def _make_handler(state: MockAmrState) -> type[BaseHTTPRequestHandler]:
                         state.cmd_log.append({"val": val, "epoch": epoch, "seq": seq, "ts": time.monotonic()})
                         self._send_json(200, {"status": "SENT"})
                         return
-                    if val in ("DISARM", "STOP"):
+                    if val == "DISARM":
                         state.latest_epoch = max(state.latest_epoch, epoch_num)
                         state.armed = False
+                        state.cmd_v = 0.0
+                        state.cmd_w = 0.0
                         state.l_rpm = 0.0
                         state.r_rpm = 0.0
                         state.cmd_log.append({"val": val, "epoch": epoch, "seq": seq, "ts": time.monotonic()})
-                        self._send_json(200, {"status": "SENT"})
+                        self._send_json(
+                            200,
+                            {
+                                "status": "SENT",
+                                "armed": False,
+                                "latched": bool(state.latched),
+                            },
+                        )
+                        return
+                    if val == "STOP":
+                        state.latest_epoch = max(state.latest_epoch, epoch_num)
+                        state.armed = False
+                        state.latched = True
+                        state.cmd_v = 0.0
+                        state.cmd_w = 0.0
+                        state.l_rpm = 0.0
+                        state.r_rpm = 0.0
+                        state.cmd_log.append({"val": val, "epoch": epoch, "seq": seq, "ts": time.monotonic()})
+                        self._send_json(
+                            200,
+                            {
+                                "status": "SENT",
+                                "reason": "STOP_CONFIRMED",
+                                "armed": False,
+                                "latched": True,
+                            },
+                        )
                         return
                     if val == "V" or val.startswith("V "):
                         parts = val.split()
@@ -167,6 +223,8 @@ def _make_handler(state: MockAmrState) -> type[BaseHTTPRequestHandler]:
                             self._send_json(409, {"status": "REJECTED", "reason": "STALE_EPOCH"})
                             return
                         state.latest_epoch = max(state.latest_epoch, epoch_num)
+                        state.cmd_v = v
+                        state.cmd_w = w
                         k = 2.0 * math.pi * 0.0366 / 60.0
                         b = 0.096
                         state.l_rpm = round((v - w * b) / k, 2)
