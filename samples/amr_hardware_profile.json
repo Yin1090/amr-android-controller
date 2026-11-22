@@ -1,0 +1,75 @@
+{
+  "robot_profile": "Differential-Drive 2-Wheel AMR (Topic 2 Calibrated Reference)",
+  "kinematics": {
+    "wheel_radius_m": 0.0366,
+    "report_track_width_m": 0.1875,
+    "report_half_track_m": 0.09375,
+    "client_half_track_m": 0.096,
+    "mps_per_rpm": 0.00383274,
+    "min_rpm": 40,
+    "max_rpm": 135,
+    "rpm_step": 10,
+    "angular_gain": 0.60,
+    "max_omega_rad_s": 1.80,
+    "diagonal_factor": 0.70710678
+  },
+  "onboard_compute": {
+    "sbc": "Raspberry Pi 4",
+    "os_ros": "ROS 2 Jazzy",
+    "ros_packages": [
+      "rplidar_ros2",
+      "slam_toolbox",
+      "tf2 static_transform_publisher"
+    ],
+    "services": {
+      "rest_api_port": 8080,
+      "mjpeg_camera_port": 8081,
+      "mjpeg_resolution": "640x480",
+      "auth_proxy_port": 8090
+    }
+  },
+  "mcu_pinout": {
+    "controller": "ESP32",
+    "serial_bridge": "CH340",
+    "baud_rate": 115200,
+    "motor_driver": {
+      "model": "MKE-M18",
+      "bus": "I2C",
+      "sda_gpio": 21,
+      "scl_gpio": 22,
+      "i2c_address": "0x42"
+    },
+    "encoders": {
+      "ppr": 937,
+      "left_gpio": [18, 19],
+      "right_gpio": [25, 26]
+    },
+    "lidar": {
+      "model": "RPLiDAR C1",
+      "scan_rate_hz": 10.0,
+      "points_per_rev_range": [666, 682]
+    }
+  },
+  "safety_and_timers": {
+    "obstacle_stop_cm": 40.0,
+    "lidar_max_age_s": 0.5,
+    "watchdog_ms": 1500,
+    "client_timers_ms": {
+      "control_hold_repeat": 150,
+      "watchdog_health": 250,
+      "telemetry_poll": 400,
+      "map_poll": 500,
+      "map_full_poll": 1000
+    },
+    "fsm_responses": {
+      "duplicate_arm": "HTTP 422 FAILED, PREFLIGHT_NOT_READY",
+      "emergency_stop": "HTTP 200 SENT, STOP_CONFIRMED (armed=false, latched=true)"
+    }
+  },
+  "sample_connection": {
+    "host": "127.0.0.1",
+    "api_port": 8080,
+    "cam_port": 8081,
+    "auth_proxy_port": 8090
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "nominal_safe": {
+    "status": "SAFE",
+    "min_m": 0.62,
+    "min_ang": 268.0,
+    "robot": {
+      "x": 0.114,
+      "y": -2.12,
+      "th": 2.1747,
+      "l_rpm": 46.09,
+      "r_rpm": 47.38
+    },
+    "control": {
+      "armed": true,
+      "fault": null,
+      "latched": false
+    },
+    "lidar": {
+      "connected": true,
+      "age_s": 0.018
+    },
+    "zones": {
+      "front": 145.0,
+      "front_left": 128.0,
+      "left": 112.0,
+      "back_left": 165.0,
+      "back": 182.0,
+      "back_right": 94.0,
+      "right": 62.0,
+      "front_right": 134.0
+    },
+    "map_info": {
+      "robot_pose": [0.114, -2.12, 2.1747]
+    }
+  },
+  "turning_warning": {
+    "status": "WARNING",
+    "min_m": 0.29,
+    "min_ang": 45.0,
+    "robot": {
+      "x": 0.25,
+      "y": -1.85,
+      "th": 2.35,
+      "l_rpm": 74.26,
+      "r_rpm": 43.53
+    },
+    "control": {
+      "armed": true,
+      "fault": null,
+      "latched": false
+    },
+    "lidar": {
+      "connected": true,
+      "age_s": 0.032
+    },
+    "zones": {
+      "front": 78.0,
+      "front_left": 29.0,
+      "left": 64.0,
+      "back_left": 140.0,
+      "back": 190.0,
+      "back_right": 175.0,
+      "right": 130.0,
+      "front_right": 88.0
+    },
+    "map_info": {
+      "robot_pose": [0.25, -1.85, 2.35]
+    }
+  },
+  "obstacle_lock_danger": {
+    "status": "DANGER_STOP",
+    "min_m": 0.17,
+    "min_ang": 0.0,
+    "robot": {
+      "x": 0.31,
+      "y": -1.62,
+      "th": 2.1747,
+      "l_rpm": 0.0,
+      "r_rpm": 0.0
+    },
+    "control": {
+      "armed": true,
+      "fault": null,
+      "latched": true
+    },
+    "lidar": {
+      "connected": true,
+      "age_s": 0.025
+    },
+    "zones": {
+      "front": 17.0,
+      "front_left": 54.0,
+      "left": 115.0,
+      "back_left": 170.0,
+      "back": 185.0,
+      "back_right": 160.0,
+      "right": 92.0,
+      "front_right": 61.0
+    },
+    "map_info": {
+      "robot_pose": [0.31, -1.62, 2.1747]
+    }
+  }
+}
