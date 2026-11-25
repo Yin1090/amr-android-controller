@@ -55,9 +55,12 @@ class CockpitStateMachine(
     private var mapPollJob: Job? = null
     private var watchdogJob: Job? = null
     private var holdLoopJob: Job? = null
+    @Volatile
+    private var armTransitionEpoch: Long = 0L
 
     fun configure(config: ConnectionConfig, rpm: Int = _state.value.desiredRpm, pid: PidGains = _state.value.pidGains) {
         stopPollingOnly()
+        armTransitionEpoch += 1L
         val prev = _state.value
         if (!prev.demoMode && (prev.activeDirection != null || prev.armState == ArmState.ARMED)) {
             val stopEpoch = prev.epoch + 1L
@@ -126,6 +129,7 @@ class CockpitStateMachine(
 
     fun stop() {
         stopPollingOnly()
+        armTransitionEpoch += 1L
         val cur = _state.value
         if (!cur.demoMode && (cur.activeDirection != null || cur.armState == ArmState.ARMED)) {
             val stopEpoch = cur.epoch + 1L
@@ -161,15 +165,16 @@ class CockpitStateMachine(
     internal suspend fun pollTelemetryOnce() {
         val cur = _state.value
         val now = clock.nowMs()
+        val pollArmEpoch = armTransitionEpoch
         if (cur.demoMode) {
             val snap = demoEngine.step(TELEMETRY_POLL_MS / 1000.0, now)
-            applyTelemetrySnapshot(snap, now)
+            applyTelemetrySnapshot(snap, now, pollArmEpoch)
             return
         }
 
         when (val result = apiClient.fetchTelemetry(cur.config, AmrApiClient.TIMEOUT_TELEMETRY_COCKPIT_MS, now)) {
             is ApiResult.Success -> {
-                applyTelemetrySnapshot(result.data, now)
+                applyTelemetrySnapshot(result.data, now, pollArmEpoch)
             }
             is ApiResult.HttpError -> {
                 _state.update {
@@ -193,15 +198,23 @@ class CockpitStateMachine(
         }
     }
 
-    private suspend fun applyTelemetrySnapshot(snap: TelemetrySnapshot, nowMs: Long) {
+    private suspend fun applyTelemetrySnapshot(
+        snap: TelemetrySnapshot,
+        nowMs: Long,
+        pollArmEpoch: Long = armTransitionEpoch
+    ) {
         var shouldAutoHaltMessage: String? = null
         stateMutex.withLock {
             val cur = _state.value
             val lidarHealthy = if (cur.demoMode) true else SafetyInterlock.isLidarHealthy(snap.lidar)
-            val newArmState = when {
-                !snap.control.fault.isNullOrBlank() -> ArmState.FAULT
-                snap.control.armed -> ArmState.ARMED
-                else -> ArmState.DISARMED
+            val newArmState = if (pollArmEpoch != armTransitionEpoch) {
+                cur.armState
+            } else {
+                when {
+                    !snap.control.fault.isNullOrBlank() -> ArmState.FAULT
+                    snap.control.armed -> ArmState.ARMED
+                    else -> ArmState.DISARMED
+                }
             }
             val blocked = SafetyInterlock.blockedDirections(snap.zones)
             val mapIsStale = if (cur.demoMode) false else SafetyInterlock.isMapStale(cur.lastMapAtMs, nowMs)
@@ -570,6 +583,7 @@ class CockpitStateMachine(
     }
 
     suspend fun requestArm() {
+        armTransitionEpoch += 1L
         val cur = _state.value
         if (cur.demoMode) {
             demoEngine.setFault(null)
@@ -585,7 +599,9 @@ class CockpitStateMachine(
             return
         }
 
-        val result = apiClient.sendCommand(cur.config, "ARM", cur.epoch, cur.seq)
+        val result = commandMutex.withLock {
+            apiClient.sendCommand(cur.config, "ARM", cur.epoch, cur.seq)
+        }
         when (result) {
             is ApiResult.Success -> {
                 val cmd = result.data
@@ -603,7 +619,9 @@ class CockpitStateMachine(
                     val faultBlocker = cmd.blockers.any { it.contains("FAULT", ignoreCase = true) } ||
                         (cmd.reason?.contains("FAULT", ignoreCase = true) == true)
                     if (!activeFault.isNullOrBlank() || faultBlocker) {
-                        apiClient.sendCommand(cur.config, "CLEAR_FAULT", cur.epoch, cur.seq)
+                        commandMutex.withLock {
+                            apiClient.sendCommand(cur.config, "CLEAR_FAULT", cur.epoch, cur.seq)
+                        }
                         val label = activeFault ?: cmd.reason ?: "FAULT"
                         _state.update {
                             it.copy(
@@ -640,6 +658,7 @@ class CockpitStateMachine(
     }
 
     suspend fun requestDisarm() {
+        armTransitionEpoch += 1L
         var stopEpoch = 0L
         var seqCopy = 0L
         var isDemo = false
@@ -678,6 +697,7 @@ class CockpitStateMachine(
     }
 
     suspend fun requestStop() {
+        armTransitionEpoch += 1L
         var stopEpoch = 0L
         var seqCopy = 0L
         var isDemo = false
@@ -730,6 +750,7 @@ class CockpitStateMachine(
     }
 
     suspend fun requestClearFault() {
+        armTransitionEpoch += 1L
         val cur = _state.value
         if (cur.demoMode) {
             demoEngine.setFault(null)
@@ -741,7 +762,9 @@ class CockpitStateMachine(
             }
             return
         }
-        apiClient.sendCommand(cur.config, "CLEAR_FAULT", cur.epoch, cur.seq)
+        commandMutex.withLock {
+            apiClient.sendCommand(cur.config, "CLEAR_FAULT", cur.epoch, cur.seq)
+        }
         _state.update { it.copy(lastCommandNotice = "CLEAR_FAULT sent") }
     }
 

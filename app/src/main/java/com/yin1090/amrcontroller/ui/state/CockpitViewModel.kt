@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ConnectionFormState(
-    val host: String = "",
+    val host: String = ConnectionConfig.DEFAULT_HOST,
     val apiPortText: String = ConnectionConfig.DEFAULT_API_PORT.toString(),
     val camPortText: String = ConnectionConfig.DEFAULT_CAM_PORT.toString(),
     val busy: Boolean = false,
@@ -385,16 +385,19 @@ class CockpitViewModel(application: Application) : AndroidViewModel(application)
             }
 
             if (!newCfg.demoMode) {
+                val rpmChanged = clampedRpm != cockpitState.value.desiredRpm
                 stateMachine.configure(newCfg, clampedRpm, gains)
                 stateMachine.start()
+                if (rpmChanged) {
+                    stateMachine.adjustRpm(0)
+                }
                 stateMachine.applyPid(gains)
-                stateMachine.adjustRpm(0)
             } else {
-                stateMachine.applyPid(gains)
                 val delta = clampedRpm - cockpitState.value.desiredRpm
                 if (delta != 0) {
                     stateMachine.adjustRpm(delta)
                 }
+                stateMachine.applyPid(gains)
             }
             stateMachine.closeSettings()
         }

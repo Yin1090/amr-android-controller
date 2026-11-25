@@ -1,4 +1,6 @@
-# AMR Android Controller (`com.yin1090.amrcontroller`)
+# AMR Android Controller
+
+Package: `com.yin1090.amrcontroller`
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF.svg)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.10.01-4285F4.svg)](https://developer.android.com/jetpack/compose)
@@ -41,7 +43,7 @@
   - 8 directional zones (`front`, `back`, `left`, `right`, `front_left`, `front_right`, `back_left`, `back_right`, mapped from LiDAR sectors `zF..zBR`) block motion whenever the target zone $< 40.0\text{ cm}$ (`0.40 m`), and auto-halt mid-motion (`V 0.000 0.000`).
   - LiDAR freshness gate: `connected == true` and `age_s < 0.5 s`.
   - `ARM`/`STOP` FSM: duplicate `ARM` when armed returns `HTTP 422 FAILED, PREFLIGHT_NOT_READY`; `STOP` returns `HTTP 200 SENT, STOP_CONFIRMED` (`armed=false, latched=true`).
-  - Polling & Watchdog Timers: `150 ms` hold repeat (`ClockControl`), `250 ms` watchdog/health (`ClockHealth`), `400 ms` telemetry (`ClockTelemetry`), `500 ms` map (`ClockMap`), `1000 ms` full map (`ClockMapFull`), `1500 ms` telemetry watchdog timeout.
+  - Polling & Watchdog Timers: `150 ms` hold repeat (`ClockControl`), `250 ms` watchdog/health (`ClockHealth`), `400 ms` telemetry (`ClockTelemetry`), `1000 ms` full occupancy map polling (`/api/map_full`, `ClockMapFull`; reference stack also notes `500 ms` `ClockMap`), `1500 ms` telemetry watchdog timeout.
 
 ### Calibrated Sample Datasets (`samples/`)
 
@@ -63,7 +65,7 @@
 
 ### Build & Verification
 
-On a workstation with **JDK 17 (`JAVA_HOME`)** and **Android SDK (`ANDROID_HOME`)** installed:
+On a workstation with **JDK 17 (`JAVA_HOME`)** and **Android SDK (`ANDROID_HOME`)** installed, open the project in Android Studio or generate the Gradle Wrapper (`gradle wrapper`, configured for Gradle `8.9` in `gradle/wrapper/gradle-wrapper.properties`) and run:
 
 ```bash
 ./gradlew testDebugUnitTest   # Runs 51 JUnit4 unit tests across Kinematics, SafetyInterlock, AmrApiClient, CockpitStateMachine, MjpegBackoff
@@ -109,7 +111,7 @@ python verification/verify_kotlin_project.py --json
 ### Kiểm thử tự động
 
 ```bash
-# Kiểm thử JUnit4 & build APK (khi có JDK 17 + Android SDK)
+# Kiểm thử JUnit4 & build APK (mở bằng Android Studio hoặc chạy `gradle wrapper` trước khi gọi `./gradlew` trên môi trường có JDK 17 + Android SDK)
 ./gradlew testDebugUnitTest
 ./gradlew assembleDebug
 

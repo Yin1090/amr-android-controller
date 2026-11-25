@@ -145,11 +145,10 @@ fun LidarMapCanvas(
                 }
             }
 
-            // Robot pose chevron (+Y up default or mapRobotPose heading)
+            // Robot pose chevron (+X front = screen up matching body-frame LiDAR scan)
             val pose: MapPose? = telemetry?.mapRobotPose
-            val heading = pose?.th ?: 0.0
             val chevronRadius = 11f
-            val tipAngle = -Math.PI / 2.0 - heading
+            val tipAngle = -Math.PI / 2.0
             val path = Path().apply {
                 val tipX = cx + (chevronRadius * cos(tipAngle)).toFloat()
                 val tipY = cy + (chevronRadius * sin(tipAngle)).toFloat()
@@ -170,7 +169,13 @@ fun LidarMapCanvas(
                     textSize = 22f
                     isAntiAlias = true
                 }
-                drawText("+Y MAP", cx + 6f, cy - maxRadiusPx + 18f, paint)
+                val hdgLabel = if (pose != null) {
+                    val deg = Math.toDegrees(pose.th).roundToInt()
+                    "+X FWD ($deg°)"
+                } else {
+                    "+X FWD"
+                }
+                drawText(hdgLabel, cx + 6f, cy - maxRadiusPx + 18f, paint)
             }
         }
 

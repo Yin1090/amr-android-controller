@@ -25,11 +25,22 @@ data class ConnectionConfig(
     val authToken: String? = null
 ) {
     val normalizedHost: String
-        get() = host.trim()
-            .removePrefix("http://")
-            .removePrefix("https://")
-            .substringBefore('/')
-            .trim()
+        get() {
+            var h = host.trim()
+            if (h.startsWith("http://", ignoreCase = true)) {
+                h = h.substring(7)
+            } else if (h.startsWith("https://", ignoreCase = true)) {
+                h = h.substring(8)
+            }
+            h = h.substringBefore('/').trim()
+            if (!h.startsWith("[") && h.count { it == ':' } == 1) {
+                val portPart = h.substringAfter(':')
+                if (portPart.isNotEmpty() && portPart.all { it.isDigit() }) {
+                    h = h.substringBefore(':')
+                }
+            }
+            return h
+        }
 
     fun formattedHostForUrl(): String {
         val h = normalizedHost

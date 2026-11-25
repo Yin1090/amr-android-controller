@@ -7,7 +7,7 @@ import com.yin1090.amrcontroller.model.ConnectionConfig
 import com.yin1090.amrcontroller.model.PidGains
 
 data class PersistedSettings(
-    val host: String = "",
+    val host: String = ConnectionConfig.DEFAULT_HOST,
     val apiPort: Int = ConnectionConfig.DEFAULT_API_PORT,
     val camPort: Int = ConnectionConfig.DEFAULT_CAM_PORT,
     val rpmMax: Int = Kinematics.DEFAULT_RPM,
@@ -19,7 +19,10 @@ class AmrSettingsStore(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): PersistedSettings {
-        val host = prefs.getString(KEY_HOST, "")?.trim().orEmpty()
+        val host = prefs.getString(KEY_HOST, ConnectionConfig.DEFAULT_HOST)
+            ?.trim()
+            .takeUnless { it.isNullOrEmpty() }
+            ?: ConnectionConfig.DEFAULT_HOST
         val apiPort = prefs.getInt(KEY_API_PORT, ConnectionConfig.DEFAULT_API_PORT)
             .takeIf { it in 1..65535 } ?: ConnectionConfig.DEFAULT_API_PORT
         val camPort = prefs.getInt(KEY_CAM_PORT, ConnectionConfig.DEFAULT_CAM_PORT)
